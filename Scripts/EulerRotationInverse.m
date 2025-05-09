@@ -151,8 +151,8 @@ function [phi, theta, psi] = EulerRotationInverse(sequence, R, branch)
             if abs(sin(theta)) < eps
                 error('Singular configuration: sin(theta) ~ 0');
             end
-            psi = atan2( R(3,2)/sin(theta), -R(3,1)/sin(theta) );
-            phi = atan2( R(2,3)/sin(theta),  R(1,3)/sin(theta) );
+            psi = atan2( R(3,1)/sin(theta), R(3,2)/sin(theta) );
+            phi = atan2( R(1,3)/sin(theta),  -R(2,3)/sin(theta) );
 
         case 'yxz'
             sinth = -R(2,3);
@@ -167,6 +167,35 @@ function [phi, theta, psi] = EulerRotationInverse(sequence, R, branch)
             end
             psi = atan2( R(2,1)/cos(theta),  R(2,2)/cos(theta) );
             phi = atan2( R(1,3)/cos(theta), -R(3,3)/cos(theta) );
+
+       case 'zyx'
+            % analogamente a 'xyz' ma invertendo l'ordine degli indici
+            sinth = -R(3,1);
+            costh = sqrt(R(3,2)^2 + R(3,3)^2);
+            if cond
+                theta = atan2(sinth,  costh);
+            else
+                theta = atan2(sinth, -costh);
+            end
+            if abs(cos(theta))<eps
+                error('Singular configuration: cos(theta) ~ 0');
+            end
+            psi = atan2( R(3,2)/cos(theta),  R(3,3)/cos(theta) );
+            phi = atan2( R(2,1)/cos(theta), -R(1,1)/cos(theta) );
+
+       case 'zxz'
+            sinth =  sqrt(R(3,1)^2 + R(3,2)^2);
+            costh = R(3,3);
+            if cond
+                theta = atan2(sinth,  costh);
+            else
+                theta = atan2(-sinth, costh);
+            end
+            if abs(sin(theta))<eps
+                error('Singular configuration: sin(theta) ~ 0');
+            end
+            psi = atan2( R(3,1)/sin(theta), R(3,2)/sin(theta) );
+            phi = atan2( R(1,3)/sin(theta),  -R(2,3)/sin(theta) );
 
         otherwise
             error('Unsupported sequence "%s".', sequence);

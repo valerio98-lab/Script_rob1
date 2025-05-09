@@ -1,0 +1,103 @@
+function q = cubicCoefficients(qi, qf, velocity, pi_dot, pf_dot, DK, T)
+    %Inputs 
+    %pi_dot = [1;2]
+    %pf_dot = [2;1]
+    %velocity is a boolean. If false the cubic polynomial will not consider
+    %any joint velocity, in a nutshell a rest-to-rest motion. 
+
+    if nargin<6 || isempty(T)
+        T=0;
+    end
+
+    if nargin < 4 && (~velocity || isempty(velocity)
+        error('Check the input parameters dumb')
+    end
+
+    if velocity
+        num_joints_i = length(qi);
+        num_joints_f = length(qf);
+    
+        if num_joints_i ~= num_joints_f
+            error('The number of Initial joints does not match final ones')
+        end
+        joint_vars = sym('q', [1 num_joints_i]);
+        J = jacobian(DK, joint_vars);
+    
+        [n,m] = size(J);
+    
+        if n==m
+            J_inv = inv(J);
+        else
+            J_inv = pinv(J);
+        end
+        disp('---J_inv---:');
+        disp(J_inv);
+        J_inv_i = double(subs(J_inv, joint_vars, qi));
+        J_inv_f = double(subs(J_inv, joint_vars, qf));
+    
+        q_dot_i = J_inv_i * pi_dot;
+        q_dot_f = J_inv_f * pf_dot;
+        
+        disp('---q_dot_i---:');
+        disp(q_dot_i);
+        disp('---q_dot_f---:');
+        disp(q_dot_f);
+        q_dot_i = q_dot_i(:);
+        q_dot_f = q_dot_f(:);
+    
+    else 
+        q_dot_i = zeros(num_join,1);
+
+    qi      = qi(:);
+    qf      = qf(:);
+    
+    % 2) controlla le dimensioni
+    if ~( all(size(qi)==size(qf)) ...
+          && all(size(qi)==size(q_dot_i)) ...
+          && all(size(qi)==size(q_dot_f)) )
+        error('Dimension mismatch: qi, qf, q_dot_i e q_dot_f devono avere la stessa dimensione');
+    end
+    
+    % 3) calcola i coefficienti
+    delta_q = qf - qi;                     % 2×1
+    a0      = qi;                          % 2×1
+    a1      = q_dot_i;                     % 2×1
+    a2      = 3*delta_q - (q_dot_f + 2*q_dot_i);  % 2×1
+    a3      = -2*delta_q + (q_dot_f + q_dot_i);   % 2×1
+
+    
+    syms s
+    q = cell(1, num_joints_i);
+    for i = 1:num_joints_i
+        % costruisco il sym per ciascun giunto
+        q{i} = a0(i) + a1(i)*s + a2(i)*s^2 + a3(i)*s^3;
+    end
+    
+    % stampa
+    syms s
+    for i = 1:numel(q)
+        % 1) espandi il polinomio simbolico
+        expr = expand(q{i});    
+    
+        % 2) estrai i coefficienti in ordine [c3,c2,c1,c0]
+        c_desc = sym2poly(expr);   
+    
+        % 3) mappa su [c0,c1,c2,c3]
+        c0 = c_desc(end);
+        c1 = c_desc(end-1);
+        c2 = c_desc(end-2);
+        c3 = c_desc(end-3);
+    
+        % 4) stampa formattato
+        fprintf('Polinomio %d: %.4f + %.4f*s + %.4f*s^2 + %.4f*s^3\n', ...
+                i, c0, c1, c2, c3);
+    end
+    
+    if T>0
+        plotTrajectories(a0, a1, a2, a3, T);
+    end
+
+
+
+
+end
