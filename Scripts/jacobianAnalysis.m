@@ -1,4 +1,5 @@
-function jacobianAnalysis(J, variables)
+function S = test(J, tol, vars)
+%JACOBIANANALYSIS  Analyse a Jacobian (numeric or symbolic) + optional singularity report.
 %   Returned fields
 %   --------------
 %     S.size           [m n]
@@ -11,137 +12,140 @@ function jacobianAnalysis(J, variables)
 %     S.nullBasis      basis of null(J)            (n × nullity)
 %     S.leftNullBasis  basis of null(Jᵀ)           (m × (m‑rank))
 %     S.condNumber     2‑norm condition number (numeric J only)
-    %parameters:
-    % J = jacobian matrix
-    % v = list of symbolic variables (only the one used to differentiate
-    % the Jacobian, don't put constants in there)
 
-    % Check if the jacobian is squared
-    disp("-------------------------------------------------------------------------------")
-    disp("Jacobian Analysis (Jacobian, Determinant, Singularity, Rank, Nullspace, Range)")
-    disp("-------------------------------------------------------------------------------")
-    [m, n] = size(J);
-    if m ~= n % If m not equal to n (joints) | If m == n, then it's square.
-        if n - m >= 2
-            % Compute the determinant
-            determinant_Jacobian = simplify(det(J.' * J));
-        
-            disp('Determinant of the Jacobian (J.T * J) --> Since its not square:');
-            disp(simplify(determinant_Jacobian));
-        
-            disp("You might want to check when the Jacobian loses full rank.")
-            disp("For doing so, you have to solve the Determinant above for the values which make it == 0.")
-            disp("Example: solve(simplify(det(J.' * J)) == 0, variables);")
-        elseif m < n
-            for i = 1:n
-                % Create a submatrix of the original non-square matrix by
-                % removing one column at a time
-                Jcopy=J;
-                Jcopy(:,i)=[];
-    
-                % Determinant of the i-th submatrix
-                fprintf('Determinant of the submatrix with column %d removed: \n', i);
-                disp(simplify(det(Jcopy)));
-    
-                % Compute the singularity (equal the determinant to zero)
-                fprintf('Singularity condition of the %s -th submatrix: \n', mat2str(i));
-                disp(simplify(det(Jcopy)==0));
-            end
-        else 
-            %create all submatrix generated from removing any m-n rows
 
-            %case of Jacobian 6*4
-            if m==6 & n==4
-                %create the sumatrices by creating all the 4by4
-                %submatrices
-                k=0;
-                for i = 1:m
-                    % Create a submatrix of the original non-square matrix by
-                    % removing one column at a time
-                    Jcopy=J;
-                    Jcopy(i,:)=[];
-                    for j=1:m-1
-                        k=k+1;
-                        Jcopy2=Jcopy;
-                        Jcopy2(j,:)=[];
-                        % Determinant of the i-th submatrix
-                        fprintf('Determinant of the submatrix with column %d removed: \n', i);
-                        disp(simplify(det(Jcopy2)));
-                    end
-                end
-            else
-                disp('The jacobian you have parsed has more rows than columns and its not a geometric jacobian')
-                % Compute the determinant
-                determinant_Jacobian = simplify(det(J.' * J));
-        
-                disp('Determinant of the Jacobian:');
-                disp(simplify(determinant_Jacobian));
-        
-                disp("You might want to check when the Jacobian loses full rank.")
-                disp("For doing so, you have to solve the Determinant above for the values which make it == 0.")
-                disp("Example: solve(simplify(det(J.' * J)) == 0, variables);")
-            end
-        end
+%   S = jacobianAnalysis(J)                – automatic tolerance, no report.
+%   S = jacobianAnalysis(J, tol)           – custom tolerance for numeric J.
+%   S = jacobianAnalysis(J, tol, vars)     – plus symbolic singularity report.
+%
+%   *J*      : m‑by‑n Jacobian, numeric or symbolic.
+%   *tol*    : numerical rank tolerance (ignored for symbolic J).
+%   *vars*   : vector of symbolic variables; if supplied and J is symbolic,
+%              the function returns a field S.singularity containing:
+%                 .expr   – symbolic condition(s) for loss of rank
+%                 .sol    – solutions for vars (via SOLVE)  ❲may be empty❳
+%
+%   Core diagnostics (always produced)
+%   ----------------------------------
+%     S.size, S.isSquare, S.determinant, S.rank, S.nullity
+%     S.colBasis, S.rowBasis, S.nullBasis, S.leftNullBasis
+%     S.condNumber   (numeric)
+%
+%   © 2025 – MIT Licence.
+
+% ------------------------------------------------------------
+% Handle optional inputs
+% ------------------------------------------------------------
+if nargin < 2 || isempty(tol)
+    if ~isa(J,'sym')
+        tol = max(size(J))*eps(norm(J,'fro'));
     else
-        % Compute the determinant
-        determinant_Jacobian = simplify(det(J));
-
-        disp('Determinant of the Jacobian:');
-        disp(simplify(determinant_Jacobian));
-
-        n_var = length(variables);
-        % Solve for all possible values of the symbols that make the determinant zero
-        if n_var == 2
-            [q1_sol, q2_sol, ~, ~] = solve(determinant_Jacobian == 0, variables, 'ReturnConditions', true);
-            solutions = [q1_sol, q2_sol];
-        elseif n_var == 3
-            [q1_sol, q2_sol, q3_sol, ~, ~] = solve(determinant_Jacobian == 0, variables, 'ReturnConditions', true);
-            solutions = [q1_sol, q2_sol, q3_sol];
-        elseif n_var == 4
-            [q1_sol, q2_sol, q3_sol, q4_sol, ~, ~] = solve(determinant_Jacobian == 0, variables, 'ReturnConditions', true);
-            solutions = [q1_sol, q2_sol, q3_sol, q4_sol];
-        end
-        disp('All possible solutions for the symbols that make the determinant zero:');
-        display(solutions);
+        tol = sym('0');
     end
-        % Compute the rank of the Jacobian
-        rank_J = rank(J);
-        
-        % Display the rank of the Jacobian
-        disp('Rank of the Jacobian:');
-        disp(rank_J);
-        
-        % Compute the nullspace of the Jacobian
-        nullspace_J = null(J);
-        
-        % Display the nullspace of the Jacobian
-        disp('Nullspace of the Jacobian:');
-        disp(simplify(nullspace_J));
+end
+if nargin < 3
+    vars = [];
+end
 
-        % Compute the range of the jacobian
-        range = simplify(orth(sym(J)));
+validateattributes(J,{'numeric','sym'},{'2d'},mfilename,'J',1);
+[m,n]  = size(J);
+isSym  = isa(J,'sym');
 
-        % Display the range
-        disp('Range of the jacobian:');
-        disp(range);
+S             = struct();
+S.size        = [m n];
+S.isSquare    = (m==n);
+S.condNumber  = NaN;         % filled later for numeric
 
-        disp('I will display the basis of the range now. -- Warning! this result might be wrong, please check by hand if possible')
-        % Display the basis of the range
-        [~,m]=size(range);
-        for i=1:m
-            [numerator, ~] = numden(range(:,i));
-            fprintf('%d basis',i)
-            display(simplify(numerator,'Steps',50));
-        end
+% ------------------------------------------------------------
+% Symbolic processing
+% ------------------------------------------------------------
+if isSym
+    % Determinant / rank
+    if S.isSquare
+        S.determinant = simplify(det(J));
+    else
+        S.determinant = sym('NaN');
+    end
+    S.rank    = double(rank(J));
+    S.nullity = n - S.rank;
 
-        % Compute the complementary nullspace of the Jacobian
-        nullspace_J_complementary = null(J');
-        if isempty(nullspace_J_complementary)
-            disp('The complementary nullspace is empty')
+    % Bases via Symbolic Math Toolbox
+    S.colBasis      = colspace(J);
+    S.rowBasis      = colspace(J.');
+    S.nullBasis     = null(J);
+    S.leftNullBasis = null(J.');
+
+    % --------------------------------------------------------
+    % Singularity report if variables supplied
+    % --------------------------------------------------------
+    if ~isempty(vars)
+        sing = struct();
+        r = S.rank;
+        if S.isSquare
+            sing.expr = simplify(det(J));  % full det
         else
-            % Display the complementary nullspace of the Jacobian
-            disp('Nullspace of the Jacobian (complementary):');
-            disp(simplify(nullspace_J_complementary));
+            % Use Gram determinant (det(J*J^T)) – vanishes ⇔ rank<J
+            if m <= n
+                sing.expr = simplify(det(J*J.'));
+            else
+                sing.expr = simplify(det(J.'*J));
+            end
         end
-        disp("-------------------------------------------------------------------------------")
+        try
+            sing.sol = solve(sing.expr == 0, vars, 'ReturnConditions', true);
+        catch
+            sing.sol = [];  % maybe over‑determined or too many vars
+        end
+        S.singularity = sing;
+    end
+
+    % Optional display
+    if nargout == 0
+        fprintf('Jacobian analysis (symbolic, %dx%d)\n',m,n);
+        fprintf('  Rank        : %d\n',S.rank);
+        if S.isSquare
+            fprintf('  Determinant : %s\n',char(S.determinant)); end
+        if isfield(S,'singularity')
+            fprintf('  Singularity condition: %s = 0\n',char(S.singularity.expr));
+        end
+    end
+    return;
+end
+
+% ------------------------------------------------------------
+% Numeric processing (unchanged)
+% ------------------------------------------------------------
+if S.isSquare
+    S.determinant = det(J);
+else
+    S.determinant = NaN;
+end
+
+S.rank    = rank(J, tol);
+S.nullity = n - S.rank;
+
+[U,~,V] = svd(J,'econ');
+S.colBasis        = U(:,1:S.rank);
+S.rowBasis        = V(:,1:S.rank);
+S.nullBasis       = V(:,S.rank+1:end);
+S.leftNullBasis   = U(:,S.rank+1:end);
+
+if S.isSquare && S.rank == n
+    S.condNumber = cond(J);
+else
+    S.condNumber = Inf;
+end
+
+if nargout == 0
+    fprintf('Jacobian analysis (numeric, %dx%d)\n',m,n);
+    fprintf('  Rank          : %d\n',S.rank);
+    if S.isSquare
+        fprintf('  Determinant   : %g\n',S.determinant);
+        if isfinite(S.condNumber)
+            fprintf('  Condition no. : %g\n',S.condNumber);
+        else
+            fprintf('  Condition no. : Inf (rank-deficient)\n');
+        end
+    end
+    fprintf('  Nullity       : %d\n',S.nullity);
 end
