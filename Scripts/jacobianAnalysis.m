@@ -1,4 +1,4 @@
-function S = test(J, tol, vars)
+function S = jacobianAnalysis(J, tol, vars)
 %JACOBIANANALYSIS  Analyse a Jacobian (numeric or symbolic) + optional singularity report.
 %   Returned fields
 %   --------------

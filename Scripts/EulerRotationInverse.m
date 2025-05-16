@@ -166,7 +166,7 @@ function [phi, theta, psi] = EulerRotationInverse(sequence, R, branch)
                 error('Singular configuration: cos(theta) ~ 0');
             end
             psi = atan2( R(2,1)/cos(theta),  R(2,2)/cos(theta) );
-            phi = atan2( R(1,3)/cos(theta), -R(3,3)/cos(theta) );
+            phi = atan2( R(1,3)/cos(theta), R(3,3)/cos(theta) );
 
        case 'zyx'
             % analogamente a 'xyz' ma invertendo l'ordine degli indici
@@ -200,4 +200,9 @@ function [phi, theta, psi] = EulerRotationInverse(sequence, R, branch)
         otherwise
             error('Unsupported sequence "%s".', sequence);
     end
+    
+    disp('Sequenza: (phi, theta, psi)')
+    fprintf('Angolo 1: %f\n\n', phi);
+    fprintf('Angolo 2: %f\n\n', theta);
+    fprintf('Angolo 3: %f\n\n', psi);
 end
