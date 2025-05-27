@@ -71,7 +71,7 @@ function [phi, theta, psi] = EulerRotationInverse(sequence, R, branch)
 
         case 'zxy'
             sinth = R(3,2);
-            costh = sqrt(R(3,1)^2 + R(3,3)^2);
+            costh = sqrt(R(1,2)^2 + R(2,2)^2);
             if cond
                 theta = atan2(sinth,  costh);
             else
@@ -81,7 +81,7 @@ function [phi, theta, psi] = EulerRotationInverse(sequence, R, branch)
                 error('Singular configuration: cos(theta) ~ 0');
             end
             psi = atan2(-R(3,1)/cos(theta), R(3,3)/cos(theta));
-            phi = atan2(-R(1,2)/cos(theta), R(2,1)/cos(theta));
+            phi = atan2(-R(1,2)/cos(theta), R(2,2)/cos(theta));
 
         % -- Similar implementation for the 6 proper/non-proper sequences
         case 'xyx'
@@ -151,8 +151,8 @@ function [phi, theta, psi] = EulerRotationInverse(sequence, R, branch)
             if abs(sin(theta)) < eps
                 error('Singular configuration: sin(theta) ~ 0');
             end
-            psi = atan2( R(3,1)/sin(theta), R(3,2)/sin(theta) );
-            phi = atan2( R(1,3)/sin(theta),  -R(2,3)/sin(theta) );
+            psi = atan2( R(3,2)/sin(theta), -R(3,1)/sin(theta) );
+            phi = atan2( R(2,3)/sin(theta), R(1,3)/sin(theta));
 
         case 'yxz'
             sinth = -R(2,3);

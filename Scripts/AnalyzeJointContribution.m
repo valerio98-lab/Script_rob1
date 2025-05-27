@@ -1,4 +1,4 @@
-function [v_dir, sigma, cosines] = analyzeJointContribution(J, mode)
+function [v_dir, sigma, cosines] = AnalyzeJointContribution(J, mode)
 % ANALYZEJOINTCONTRIBUTION 
 %   [v_dir, sigma, cosines] = analyzeJointContribution(J, mode)
 %

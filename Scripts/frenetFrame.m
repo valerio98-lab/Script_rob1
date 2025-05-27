@@ -24,20 +24,20 @@ function FF = frenetFrame(p, s)
     p3 = diff(p2, s);   % p‴
 
     % tangente unitario
-    T = simplify( p1 / norm(p1) );
+    T = simplify((p1/norm(p1)),"IgnoreAnalyticConstraints",true);
 
     % normale
-    T_prime = diff(T,s);
-    N = simplify(T_prime/norm(T_prime));
+    N = (cross(p1, cross(p2,p1)))/(norm(p1)*norm(cross(p2,p1)));
+    N = simplify(N, 'IgnoreAnalyticConstraints',true); 
 
     % normale
-    B = simplify( cross(T, N) );
+    B = simplify( cross(T, N), 'IgnoreAnalyticConstraints',true);
 
     % curvatura
-    kappa = simplify( norm(cross(p1,p2)) / norm(p1)^3 );
+    kappa = simplify( norm(cross(p1,p2)) / norm(p1)^3, "IgnoreAnalyticConstraints",true );
 
     % torsione
-    tau = simplify(dot(p1,cross(p2,p3)) / norm(cross(p1,p2))^2 );
+    tau = simplify(dot(p1,cross(p2,p3)) / norm(cross(p1,p2))^2, "IgnoreAnalyticConstraints",true );
 
     % componi la struct di output
     FF = struct( ...
