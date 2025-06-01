@@ -1,6 +1,8 @@
-function S = spline_plot_and_compute(t, Q, varargin)
+function S = spline_plot_and_compute(t, Q, method, varargin)
 % % La funzione calcola direttamente la spline ma in più agli altri script
 % la plotta anche. Quando avrò il tempo li renderò una cosa unica
+
+% method: 'cubicC2' (default) | 'pchip'
 
 %% UTILIZZO 
 
@@ -28,12 +30,28 @@ function S = spline_plot_and_compute(t, Q, varargin)
 %   quick_spline_demo(t, Q, acc0, []);           % impone acc in t1
 %   quick_spline_demo(t, Q, acc0, accN);         % acc in t1 e tN
 
-    if nargin <= 2          % caso "senza accelerazioni imposte"
-        S = spline_cubic_tridiag(t, Q);
-    else                    % con ghost-knots
-        acc0 = varargin{1};
-        if nargin < 4, accN = [];     else, accN = varargin{2}; end
-        S = spline_cubic_accbord(t, Q, acc0, accN);
+
+    if nargin < 3 || isempty(method),  method = 'cubicC2';  end
+
+    switch lower(method)
+        case 'cubicc2'                          % le tue routine originali
+            if nargin <= 3
+                S = spline_cubic_tridiag(t,Q);
+            else
+                acc0 = varargin{1};
+                accN = [];
+                if nargin >= 4,  accN = varargin{2};  end
+                S = spline_cubic_accbord(t,Q,acc0,accN);
+            end
+
+        case 'pchip'                            % nuovo ramo
+            if nargin > 3
+                warning('Acc0/AccN ignorate in P-chip');
+            end
+            S = spline_pchip(t,Q);
+
+        otherwise
+            error('Metodo sconosciuto');
     end
 
     % tabella per ogni giunto
