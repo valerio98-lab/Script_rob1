@@ -1,4 +1,4 @@
-function [q, pathCoeffs] = cubicCoefficients(qi, qf, velocity, T, DK, pi_dot, pf_dot, N)
+function [q, pathCoeffs, vel_t_max, vel_val_max, acc_t_max, acc_val_max] = cubicCoefficients(qi, qf, velocity, T, DK, pi_dot, pf_dot, N)
     % CUBICCOEFFICIENTS  Joint cubic interpolation *and* Cartesian path plot.
     %
     %   q = cubicCoefficients(qi,qf,velocity,T,DK,pi_dot,pf_dot, N) uses the
@@ -9,9 +9,26 @@ function [q, pathCoeffs] = cubicCoefficients(qi, qf, velocity, T, DK, pi_dot, pf
     %       • Cartesian path of the end-effector in 3-D (or 2-D if DK is 2×1)
     %
     %   N is the number of points for plotting (default = 100).
-       %% REST 2 REST
-%     [q, coeffs] = cubicCoefficients(-.78, 0, false, 1,[]);
-%       disp(q); 
+           %% REST 2 REST
+        %[q, C, tV, vMax, tA, aMax] = cubicCoefficients([-0.78;1.2; 1.5], [ 0.40; -0.4; 0], false, 2.0, []);
+
+        % table(tV, vMax, tA, aMax)
+        % disp(q); 
+        
+        %% Caso con DH:
+        % f_q = [q2*cos(q1)+0.6*cos(q1+q3);
+        %     q2*sin(q1)+0.6*sin(q1+q3);
+        %     q1+q3]; 
+        % 
+        % [q, C, tV, vMax, tA, aMax] = cubicCoefficients([-0.78;1.2; 1.5], [ 0.40; -0.4; 0], true, 2.0, f_q, [0,0,0], [1,6,8]);
+        % 
+        % table(tV, vMax, tA, aMax)
+        
+        %% SENZA DH MA VELOCITà NON REST
+        % [q, C, tV, vMax, tA, aMax] = cubicCoefficients([-0.78;1.2; 1.5], [ 0.40; -0.4; 0], true, 2.0, [], [0,0,0], [1,6,8]);
+        % 
+        % table(tV, vMax, tA, aMax)
+
 %%
 
     if nargin < 8 || isempty(N),        N = 100;       end
@@ -24,58 +41,72 @@ function [q, pathCoeffs] = cubicCoefficients(qi, qf, velocity, T, DK, pi_dot, pf
 
     %--------------------------------------
     % 1) Check that qi, qf have the same length
-    num_joints_i = length(qi);
-    num_joints_f = length(qf);
-    if num_joints_i ~= num_joints_f
-        error('The number of initial joints does not match the number of final joints.');
+    %--------------------------------------
+    % 1) Check dimensional consistency on positions --------------------------
+    num_joints = numel(qi);
+    if numel(qf) ~= num_joints
+        error('qi and qf must have the same length.');
     end
-    num_joints = num_joints_i;
-
-    % 2) Build the symbolic joint‐variable vector as a 1×N row:
-    joint_vars = sym('q', [1 num_joints]);   % e.g. [q1, q2, ..., qN]
-
-    % 3) Compute the Jacobian symbolically:
-    J = jacobian(DK, joint_vars);
-
-    %-----------------------------
-    % 4) Convert qi, qf into 1×N row vectors BEFORE calling subs:
-    qi_row = qi(:).';   % now size = [1×N]
-    qf_row = qf(:).';   % now size = [1×N]
-
-    % 5) Substitute into J, then convert to double for numeric use
-    v_j_i = double(subs(J, joint_vars, qi_row));   % J evaluated at qi
-    v_j_f = double(subs(J, joint_vars, qf_row));   % J evaluated at qf
-
-    if velocity
-        % If DK is square, use inv; otherwise pinv:
-        if isempty(DK)                       % <<< NUOVO CASO >>>
-            %  ➜  pi_dot e pf_dot sono GIA' velocità di giunto
+    
+    % 2) Symbolic joint vector ------------------------------------------------
+    joint_vars = sym('q', [1 num_joints]);
+    
+    % 3) Row-vectors di configurazione (servono comunque) ---------------------
+    qi_row = qi(:).';          %  1 × N
+    qf_row = qf(:).';
+    
+    % 4) Gestione DK / Jacobiano / velocità -----------------------------------
+    if isempty(DK)                 % ****** CASO A: DK assente ******
+        v_j_i = [];  v_j_f = [];
+    
+        if velocity
+            if isempty(pi_dot), pi_dot = zeros(num_joints,1); end
+            if isempty(pf_dot), pf_dot = zeros(num_joints,1); end
+            if numel(pi_dot)~=num_joints || numel(pf_dot)~=num_joints
+                error('pi_dot / pf_dot must have the same length as qi.');
+            end
             q_dot_i = pi_dot(:);
             q_dot_f = pf_dot(:);
         else
-
+            q_dot_i = zeros(num_joints,1);
+            q_dot_f = zeros(num_joints,1);
+        end
+    
+    else                            % ****** CASO B: DK presente ******
+        J = jacobian(DK, joint_vars);
+    
+        v_j_i = double( subs(J, joint_vars, qi_row) );
+        v_j_f = double( subs(J, joint_vars, qf_row) );
+    
+        if velocity
+            if isempty(pi_dot), pi_dot = zeros(size(DK)); end
+            if isempty(pf_dot), pf_dot = zeros(size(DK)); end
+            if numel(pi_dot)~=size(DK,1) || numel(pf_dot)~=size(DK,1)
+                error('pi_dot / pf_dot must have length equal to rows of DK.');
+            end
+    
             if size(J,1) == size(J,2)
                 J_inv = inv(J);
             else
                 J_inv = pinv(J);
             end
-            % Evaluate J_inv at qi_row and qf_row, then convert to double:
-            J_inv_i = double(subs(J_inv, joint_vars, qi_row));
-            J_inv_f = double(subs(J_inv, joint_vars, qf_row));
+            J_inv_i = double( subs(J_inv, joint_vars, qi_row) );
+            J_inv_f = double( subs(J_inv, joint_vars, qf_row) );
     
-            % Multiply by Cartesian velocity vectors pi_dot, pf_dot:
             q_dot_i = J_inv_i * pi_dot(:);
             q_dot_f = J_inv_f * pf_dot(:);
+        else
+            q_dot_i = zeros(num_joints,1);
+            q_dot_f = zeros(num_joints,1);
         end
-    else
-        q_dot_i = zeros(num_joints,1);
-        q_dot_f = zeros(num_joints,1);
     end
+
 
     %-----------------------------------------
     % 6) Now reshape qi, qf back into N×1 columns for the polynomial math:
     qi = qi(:);
     qf = qf(:);
+    
 
     % Check consistency
     if ~( all(size(qi) == size(qf)) && ...
@@ -107,7 +138,59 @@ function [q, pathCoeffs] = cubicCoefficients(qi, qf, velocity, T, DK, pi_dot, pf
         q{k} = a0(k) + a1(k)*s + a2(k)*s^2 + a3(k)*s^3;
     end
 
+    vel_t_max     = zeros(num_joints,1);
+    vel_val_max   = zeros(num_joints,1);
+    acc_t_max     = zeros(num_joints,1);
+    acc_val_max   = zeros(num_joints,1);
+
+
+    for k = 1:num_joints
+        A0 = pathCoeffs(k,1);
+        A1 = pathCoeffs(k,2);
+        A2 = pathCoeffs(k,3);
+        A3 = pathCoeffs(k,4);
+    
+        % ---- vel -----
+        cand_s = [0 1];
+        if abs(A3) > eps
+            s_star = -A2/(3*A3);
+            if s_star>=0 && s_star<=1
+                cand_s(end+1) = s_star;
+            end
+        end
+        vel_s = A1 + 2*A2*cand_s + 3*A3*cand_s.^2;
+    
+        if T>0
+            [vmax, idx]    = max(abs(vel_s)/T);
+            vel_t_max(k)   = cand_s(idx)*T;
+        else
+            [vmax, idx]    = max(abs(vel_s));     % tempo normalizzato
+            vel_t_max(k)   = cand_s(idx);
+        end
+        vel_val_max(k) = vmax;
+    
+        % ---- acc -----
+        bordi = [0 1];                  % aggiungi subito prima di usarlo
+    
+        acc_s = 2*A2 + 6*A3*bordi;      % usa 'bordi' anche qui
+        if T>0
+            [amax, idy]  = max(abs(acc_s)/T^2);
+            acc_t_max(k) = bordi(idy)*T;     % istante in secondi
+        else
+            [amax, idy]  = max(abs(acc_s));
+            acc_t_max(k) = bordi(idy);       % istante in s normalizzato
+        end
+        acc_val_max(k) = amax;
+    end
+
+
     % 9) (Optional) Pretty‐print each polynomial’s numeric coefficients:
+    fprintf('\n# Max |velocity| and |acceleration|\n');
+    for k = 1:num_joints
+        fprintf('Joint %d:  |q̇|max = %.4g at t = %.4g s   |q̈|max = %.4g at t = %.4g s\n', ...
+                k, vel_val_max(k), vel_t_max(k), acc_val_max(k), acc_t_max(k));
+    end
+
     for k = 1:num_joints
         pc = pathCoeffs(k,:);
         txt = sprintf('Poly %d:',k);
@@ -119,10 +202,12 @@ function [q, pathCoeffs] = cubicCoefficients(qi, qf, velocity, T, DK, pi_dot, pf
         disp(txt)
     end
 
-    disp('Velocità di giunto iniziale v_j_i (Jacobiana @ qi):');
-    disp(v_j_i);
-    disp('Velocità di giunto finale   v_j_f (Jacobiana @ qf):');
-    disp(v_j_f);
+    if ~isempty(v_j_i)
+        disp('Velocità di giunto iniziale v_j_i (Jacobiana @ qi):');
+        disp(v_j_i);
+        disp('Velocità di giunto finale   v_j_f (Jacobiana @ qf):');
+        disp(v_j_f);
+    end
 
     %-----------------------------------------
     % 10) If T > 0, plot joint trajectories and Cartesian path:
