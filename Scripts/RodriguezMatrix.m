@@ -1,5 +1,4 @@
 function R_finale = RodriguezMatrix(r, theta)
-    r = r';
     r = r/norm(r);
     
     skew_sym = @(r) [0, -r(3), r(2);

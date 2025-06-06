@@ -156,7 +156,7 @@ function [phi, theta, psi] = EulerRotationInverse(sequence, R, branch)
 
         case 'yxz'
             sinth = -R(2,3);
-            costh = sqrt(R(2,1)^2 + R(2,2)^2);
+            costh = sqrt(R(1,3)^2 + R(3,3)^2);
             if cond
                 theta = atan2(sinth, costh);
             else
@@ -181,7 +181,7 @@ function [phi, theta, psi] = EulerRotationInverse(sequence, R, branch)
                 error('Singular configuration: cos(theta) ~ 0');
             end
             psi = atan2( R(3,2)/cos(theta),  R(3,3)/cos(theta) );
-            phi = atan2( R(2,1)/cos(theta), -R(1,1)/cos(theta) );
+            phi = atan2( R(2,1)/cos(theta), R(1,1)/cos(theta) );
 
        case 'zxz'
             sinth =  sqrt(R(3,1)^2 + R(3,2)^2);
